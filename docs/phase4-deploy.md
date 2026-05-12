@@ -93,6 +93,8 @@ curl -sf "https://$APP_FQDN/health"
 
 ## Trin 4 — custom domain (mcp.ai-raadgivning.dk)
 
+> **Bicep redeploy advarsel:** `infra/main.bicep` administrerer **ikke** custom-domain-bindingen. Du opretter den via `az containerapp hostname add/bind` her i Trin 4. Efterfølgende `az deployment sub create`-kørsler bevarer bindingen, fordi Bicep'en *ikke* nævner `customDomains` (omitting = preserve eksisterende state). MEN: ændrer du Bicep'en til at sætte `customDomains: []` eller andet eksplicit, ryger bindingen. Bind igen med `az containerapp hostname bind` hvis det sker.
+
 DNS skal være på plads før Azure kan validere ejerskab og udstede et managed cert.
 
 1. Hent verification target:

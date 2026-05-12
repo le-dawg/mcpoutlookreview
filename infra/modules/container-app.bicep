@@ -60,12 +60,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             weight: 100
           }
         ]
-        customDomains: empty(customDomain) ? [] : [
-          {
-            name: customDomain
-            bindingType: 'SniEnabled'
-          }
-        ]
+        // customDomains intentionally NOT set in Bicep — managed via
+        // `az containerapp hostname add/bind` after DNS is in place.
+        // Re-running this template will preserve existing bindings as long
+        // as we don't write the customDomains key here.
       }
       secrets: [
         {

@@ -10,7 +10,7 @@ param acrPullPrincipalId string
 // "AcrPull" role
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: name
   location: location
   sku: {
