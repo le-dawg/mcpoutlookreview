@@ -1,6 +1,6 @@
 # Handover — Claude for Outlook (AI Rådgivning)
 
-**Status:** Fase 0 (Discovery) afsluttet. Klar til Fase 1 (Azure AD app registration) så snart GitHub-repo er oprettet.
+**Status:** Fase 1 (Azure AD app registration) afsluttet 2026-05-12. Klar til Fase 2 (Exchange kalender-baseline) — venter på leadership-briefing før non-dry run.
 **Ejer:** J (Jacob Dalhoff) — `jacob@ai-raadgivning.dk`
 **Implementering:** Claude Code kører teknisk eksekvering; J er Global Admin + Azure Owner.
 
@@ -66,14 +66,34 @@ Kollega-kalender:  Reviewer (fuld detalje)
 Multi-tenant:      Nej
 ```
 
+## 4b. Fase 1 — bekræftede værdier (2026-05-12)
+
+App registration oprettet via manuel clickthrough (`docs/phase1-manual.md`). Admin consent givet for alle 7 scopes.
+
+```
+App display name      : Claude for Outlook (AI Rådgivning)
+App ID (client ID)    : 4c797321-edf4-4382-b455-4501cd87c8c0
+Tenant                : 9de3d9c3-b0bb-4d2e-93ab-f6407a8b3793
+Redirect URI          : https://mcp.ai-raadgivning.dk/auth/callback (Web platform)
+Sign-in audience      : AzureADMyOrg (single tenant)
+Cert thumbprint (SHA1): 00EFA562B712661D3DA092803C99014C83A60B70
+Cert algorithm        : RSA 2048
+Cert expires          : ca. 2027-05-12 (rotation går i Fase 7 runbook)
+Cert privat nøgle     : lokalt på J's maskine — flyttes til Key Vault i Fase 4
+Admin consent         : ✅ alle 7 delegerede Graph-scopes
+Client secret         : ingen (cert-only)
+```
+
+App ID og tenant ID er ikke hemmelige — de bruges direkte som config-parametre i Fase 3 og 4.
+
 ---
 
 ## 5. De 7 faser
 
-| # | Fase | Hvad leveres | Checkpoint? |
-|---|---|---|---|
-| 0 | **Discovery** | Beslutninger ovenfor, kickoff-doc | — |
-| 1 | **Azure AD app registration** | Bicep-modul + PowerShell fallback + certifikat, 7 Graph-scopes (delegated) | ⏸ Før "Grant admin consent" i Entra |
+| # | Fase | Hvad leveres | Checkpoint? | Status |
+|---|---|---|---|---|
+| 0 | **Discovery** | Beslutninger ovenfor, kickoff-doc | — | ✅ 2026-04-23 |
+| 1 | **Azure AD app registration** | Bicep-modul + PowerShell fallback + certifikat, 7 Graph-scopes (delegated) | ⏸ Før "Grant admin consent" i Entra | ✅ 2026-05-12 |
 | 2 | **Exchange kalender-baseline** | `set-calendar-baseline.ps1` + scheduled runbook (ugentligt) | ⏸ Før non-dry kørsel — skal socialiseres med ledelse først |
 | 3 | **MCP-server** | TypeScript-server med tool-endpoints: `send_email`, `create_draft`, `reply_to_thread`, `create_event`, `update_event`, `delete_event`, `read_colleague_calendar`, `find_meeting_slot` (+ mail-søgning/læsning på *egen* mailbox). OAuth-flow, Key Vault token-store, audit logging | — |
 | 4 | **Deploy til Azure** | Bicep `main.bicep` → RG, Log Analytics, Container App, Key Vault, custom domain, managed cert | ⏸ Før første `az deployment sub create` i prod |
@@ -163,25 +183,14 @@ Ved projektets slutning:
 
 ## 11. Lige nu — næste skridt
 
-**Blokkeret på:** GitHub CLI re-auth hos J. Token i keyring er udløbet.
+**Blokkeret på:** Leadership-briefing før Fase 2 kalender-baseline kan køres non-dry.
 
-Når J kører:
-```
-gh auth login -h github.com -s "repo,read:org,workflow" -w
-```
+Når leadership er briefet, leverer Fase 2:
 
-…så starter Claude Code:
-
-1. Initialiserer lokalt git-repo
-2. Opretter privat repo `github.com/solution8-com/claude-outlook-mcp`
-3. Committer Fase 1-artefakter:
-   - `infra/modules/app-registration.bicep`
-   - `scripts/create-app-registration.ps1`
-   - `scripts/generate-cert.sh`
-   - `docs/kickoff.md`
-   - `.gitignore`, `README.md`
-4. Pusher til main
-5. Stopper ved **checkpoint #1** — J klikker "Grant admin consent for AI Rådgivning" i Entra-portalen
+1. `scripts/set-calendar-baseline.ps1` — sætter `Default = Reviewer` på alle `\Calendar`-folders i tenanten
+2. Scheduled runbook (Azure Automation eller GitHub Actions cron) der griber nye medarbejdere ugentligt
+3. Dry-run mode som default; eksplicit `-Apply` flag for at ændre faktiske permissions
+4. Stop ved **checkpoint #2** — J godkender før første non-dry kørsel
 
 ---
 
