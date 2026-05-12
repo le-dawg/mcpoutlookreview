@@ -59,8 +59,19 @@ if (-not $existing) {
   if (-not $UserPrincipalName) {
     throw 'No active Exchange Online session. Pass -UserPrincipalName <upn>.'
   }
-  Write-Host "Connecting to Exchange Online as $UserPrincipalName..." -ForegroundColor Cyan
-  Connect-ExchangeOnline -UserPrincipalName $UserPrincipalName -ShowBanner:$false
+  $connectParams = @{
+    UserPrincipalName = $UserPrincipalName
+    ShowBanner        = $false
+  }
+  # MSAL's embedded browser flow is unreliable on macOS/Linux — use device code instead.
+  if ($IsMacOS -or $IsLinux) {
+    $connectParams.Device = $true
+    Write-Host "Connecting to Exchange Online as $UserPrincipalName (device code flow)..." -ForegroundColor Cyan
+    Write-Host "Follow the URL + code that appears below in any browser." -ForegroundColor Yellow
+  } else {
+    Write-Host "Connecting to Exchange Online as $UserPrincipalName..." -ForegroundColor Cyan
+  }
+  Connect-ExchangeOnline @connectParams
 }
 
 # --- Enumerate target mailboxes ---------------------------------------------
