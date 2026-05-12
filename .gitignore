@@ -1,0 +1,41 @@
+# Node / TypeScript build
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Secrets, certs, keys — NEVER commit
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+.env
+.env.*
+!.env.example
+
+# IaC / Azure
+.azure/
+out/
+*.bicepparam.local.json
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local Claude state (per-user, not shared)
+.claude/settings.local.json
