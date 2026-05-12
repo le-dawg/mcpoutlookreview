@@ -23,6 +23,9 @@ pnpm-debug.log*
 out/
 *.bicepparam.local.json
 
+# Local dev state (token caches, transient runtime data)
+.local/
+
 # Logs
 *.log
 
