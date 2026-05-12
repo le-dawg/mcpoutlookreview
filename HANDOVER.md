@@ -1,6 +1,6 @@
 # Handover — Claude for Outlook (AI Rådgivning)
 
-**Status:** Fase 2a (Exchange kalender-baseline) applied 2026-05-12 mod 10 user mailboxes. Scheduled runbook (Fase 2b) endnu ikke sat op — afventer beslutning om cron vs. on-demand.
+**Status:** Fase 3 milestone 1 (MCP-server skeleton + OAuth + whoami smoke-tool) valideret end-to-end 2026-05-12. Pipelinen cert auth → MSAL OAuth+PKCE → token cache → Graph → MCP virker mod produktion. Klar til milestone 2 (11 rigtige tools).
 **Ejer:** J (Jacob Dalhoff) — `jacob@ai-raadgivning.dk`
 **Implementering:** Claude Code kører teknisk eksekvering; J er Global Admin + Azure Owner.
 
@@ -110,6 +110,8 @@ App ID og tenant ID er ikke hemmelige — de bruges direkte som config-parametre
 | 1 | **Azure AD app registration** | Bicep-modul + PowerShell fallback + certifikat, 7 Graph-scopes (delegated) | ⏸ Før "Grant admin consent" i Entra | ✅ 2026-05-12 |
 | 2a | **Exchange kalender-baseline (manual)** | `set-calendar-baseline.ps1` applied mod alle user mailboxes | ⏸ Før non-dry kørsel — skal socialiseres med ledelse først | ✅ 2026-05-12 |
 | 2b | **Scheduled runbook** | Cron der fanger nye medarbejdere ugentligt (kræver separat Entra app reg + cert) | — | ⚪ Pending |
+| 3a | **MCP-server skeleton + auth** | TS-server, OAuth Auth Code + PKCE, MSAL cache, `whoami` smoke-tool | — | ✅ 2026-05-12 |
+| 3b | **Tool surface** | 11 tools (mail+kalender), rate limit, audit log, Graph fejl-mapping | — | 🟡 Næste |
 | 3 | **MCP-server** | TypeScript-server med tool-endpoints: `send_email`, `create_draft`, `reply_to_thread`, `create_event`, `update_event`, `delete_event`, `read_colleague_calendar`, `find_meeting_slot` (+ mail-søgning/læsning på *egen* mailbox). OAuth-flow, Key Vault token-store, audit logging | — |
 | 4 | **Deploy til Azure** | Bicep `main.bicep` → RG, Log Analytics, Container App, Key Vault, custom domain, managed cert | ⏸ Før første `az deployment sub create` i prod |
 | 5 | **Registrering i Claude Cowork** | Custom connector i Cowork admin, pilot med J + 1–2 kolleger, derefter org-wide | ⏸ Før org-wide-aktivering (pilot skal være grøn) |
