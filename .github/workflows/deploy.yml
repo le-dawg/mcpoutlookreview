@@ -1,0 +1,76 @@
+name: Build & deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'infra/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: rg-claude-outlook-prod
+  AZURE_LOCATION: westeurope
+  IMAGE_NAME: outlook-mcp
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_CI }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve ACR login server
+        id: acr
+        run: |
+          ACR_NAME=$(az resource list -g "$RESOURCE_GROUP" --resource-type Microsoft.ContainerRegistry/registries --query '[0].name' -o tsv)
+          if [ -z "$ACR_NAME" ]; then
+            echo "ACR not found in $RESOURCE_GROUP — run a sub-scope Bicep deploy first to create it." >&2
+            exit 1
+          fi
+          ACR_LOGIN=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
+          echo "name=$ACR_NAME" >> "$GITHUB_OUTPUT"
+          echo "login=$ACR_LOGIN" >> "$GITHUB_OUTPUT"
+
+      - name: ACR login
+        run: az acr login --name ${{ steps.acr.outputs.name }}
+
+      - name: Build & push image
+        id: push
+        working-directory: server
+        run: |
+          IMAGE="${{ steps.acr.outputs.login }}/$IMAGE_NAME:${GITHUB_SHA::12}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_CI }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update Container App image
+        run: |
+          APP_NAME=$(az resource list -g "$RESOURCE_GROUP" --resource-type Microsoft.App/containerApps --query '[0].name' -o tsv)
+          az containerapp update --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --image "${{ needs.build-and-push.outputs.image }}"

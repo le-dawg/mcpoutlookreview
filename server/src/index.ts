@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -16,9 +16,22 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", oauthRouter);
 
+function bearerAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!config.MCP_AUTH_TOKEN) {
+    next();
+    return;
+  }
+  const header = req.headers.authorization;
+  if (header !== `Bearer ${config.MCP_AUTH_TOKEN}`) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  next();
+}
+
 const transports = new Map<string, StreamableHTTPServerTransport>();
 
-app.post("/mcp", async (req, res) => {
+app.post("/mcp", bearerAuth, async (req, res) => {
   try {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     let transport = sessionId ? transports.get(sessionId) : undefined;
@@ -43,10 +56,7 @@ app.post("/mcp", async (req, res) => {
   }
 });
 
-const forwardSessionRequest = async (
-  req: express.Request,
-  res: express.Response
-): Promise<void> => {
+async function forwardSessionRequest(req: Request, res: Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
   const transport = sessionId ? transports.get(sessionId) : undefined;
   if (!transport) {
@@ -54,14 +64,15 @@ const forwardSessionRequest = async (
     return;
   }
   await transport.handleRequest(req, res);
-};
-app.get("/mcp", forwardSessionRequest);
-app.delete("/mcp", forwardSessionRequest);
+}
+app.get("/mcp", bearerAuth, forwardSessionRequest);
+app.delete("/mcp", bearerAuth, forwardSessionRequest);
 
 app.listen(config.PORT, () => {
+  const cacheBackend = config.KV_NAME ? `Key Vault (${config.KV_NAME})` : "local file";
+  const authMode = config.MCP_AUTH_TOKEN ? "bearer token required" : "disabled (dev)";
   console.log(`outlook-mcp listening on port ${config.PORT}`);
-  console.log(`  Health     : http://localhost:${config.PORT}/health`);
-  console.log(`  Sign in    : http://localhost:${config.PORT}/auth/login`);
-  console.log(`  MCP        : POST http://localhost:${config.PORT}/mcp`);
+  console.log(`  Token cache: ${cacheBackend}`);
+  console.log(`  /mcp auth  : ${authMode}`);
   console.log(`  Dev user   : ${config.DEV_USER_UPN}`);
 });

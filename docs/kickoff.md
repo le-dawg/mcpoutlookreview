@@ -30,7 +30,8 @@ Fuld kontekst: [`../HANDOVER.md`](../HANDOVER.md).
 - ✅ Fase 0 — Discovery
 - ✅ Fase 1 — Entra app registration
 - ✅ Fase 2 — Exchange kalender-baseline ([`phase2-calendar-baseline.md`](./phase2-calendar-baseline.md))
-- 🟡 Fase 3 — MCP-server *(her — se [`phase3-mcp-server.md`](./phase3-mcp-server.md))*
+- ✅ Fase 3 — MCP-server ([`phase3-mcp-server.md`](./phase3-mcp-server.md))
+- 🟡 Fase 4 — Azure deploy *(her — se [`phase4-deploy.md`](./phase4-deploy.md))*
 - ⚪ Fase 3 — MCP-server (TypeScript)
 - ⚪ Fase 4 — Azure deploy (Container Apps, Key Vault, custom domain)
 - ⚪ Fase 5 — Cowork connector-registrering + pilot
