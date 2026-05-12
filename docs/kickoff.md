@@ -38,59 +38,15 @@ Fuld kontekst: [`../HANDOVER.md`](../HANDOVER.md).
 
 ## Fase 1 — sådan kører du det
 
-### 1. Forudsætninger (engangs)
+**Primær vej:** Manuel clickthrough i Entra-portalen. Den er hurtigere end at installere `az`/`pwsh` for én engangs-opsætning.
 
-```bash
-brew install azure-cli
-brew install --cask powershell      # kun nødvendigt hvis du bruger PS-fallback
-# openssl følger med macOS
-az login --tenant 9de3d9c3-b0bb-4d2e-93ab-f6407a8b3793
-```
+👉 Følg [`phase1-manual.md`](./phase1-manual.md) — ~10 min, inkluderer cert-generering og checkpoint #1.
 
-### 2. Generér cert
+**Alternativ (IaC):** Hvis du vil have app reg'en provisioneret via kode, er Bicep og PowerShell-fallback bevaret som referencer:
+- `infra/modules/app-registration.bicep` — Microsoft.Graph Bicep extension (preview)
+- `scripts/create-app-registration.ps1` — Graph PowerShell fallback
 
-```bash
-./scripts/generate-cert.sh ./out/cert claude-outlook-mcp 365
-```
-
-Output:
-- `./out/cert/claude-outlook-mcp.crt` — uploades til Entra (offentlig)
-- `./out/cert/claude-outlook-mcp.key` — privat, skal i Key Vault før Fase 4
-- `./out/cert/claude-outlook-mcp.pfx` — bundle, hvis runtime-loaderen kræver PKCS12
-
-### 3. Deploy app registration
-
-**Primær vej — Bicep (Microsoft.Graph extension):**
-
-```bash
-CERT_B64=$(base64 -i ./out/cert/claude-outlook-mcp.crt)
-
-az deployment sub create \
-  --location westeurope \
-  --template-file infra/modules/app-registration.bicep \
-  --parameters certificatePublicKey="$CERT_B64"
-```
-
-**Fallback — PowerShell (hvis Microsoft.Graph Bicep extension ikke kan loades):**
-
-```bash
-pwsh ./scripts/create-app-registration.ps1 \
-  -CertPath ./out/cert/claude-outlook-mcp.crt
-```
-
-Begge veje opretter:
-- Entra app reg `Claude for Outlook (AI Rådgivning)`, single-tenant
-- De 7 delegerede Graph-scopes (se nedenfor)
-- Service principal
-- Certifikat-credential på app reg
-
-### 4. Checkpoint #1 — admin consent
-
-Når deployment er færdig, åbn:
-
-> Entra-portal → **App registrations** → *Claude for Outlook (AI Rådgivning)* → **API permissions** → **Grant admin consent for AI Rådgivning**
-
-Indtil dette er gjort, kan ingen bruger OAuth'e mod app'en.
+Begge filer beskriver præcis samme konfiguration som den manuelle guide — brug dem hvis du senere skal oprette app'en igen i en test-tenant eller automatisere efter en rotation.
 
 ## De 7 delegerede Graph-scopes
 
