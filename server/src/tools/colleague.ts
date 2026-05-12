@@ -42,11 +42,16 @@ const FindSlotInput = z.object({
   endWindow: z.string().datetime(),
   meetingDurationMinutes: z.number().int().min(15).max(480).default(30),
   maxCandidates: z.number().int().min(1).max(20).default(5),
+  acceptTentative: z.boolean().default(false)
+    .describe("If true, slots where an attendee is 'tentative' (has a soft event) are also returned. Default false — only slots where everyone is 'free'."),
 });
+
+const ACCEPTABLE_FREE = new Set(["free"]);
+const ACCEPTABLE_WITH_TENTATIVE = new Set(["free", "tentative"]);
 
 export const findMeetingSlot = makeTool(
   "find_meeting_slot",
-  "Ask Graph to suggest meeting time slots that work across a list of attendees within a search window. Uses Microsoft Graph findMeetingTimes.",
+  "Suggest meeting time slots that work across a list of attendees within a search window. Only returns slots where ALL attendees (and the organizer) are free — pass acceptTentative=true to also accept slots where attendees are tentatively booked. Uses Microsoft Graph findMeetingTimes.",
   FindSlotInput,
   async (args, ctx) => {
     const result: Record<string, unknown> = await graphFor(ctx.upn).api("/me/findMeetingTimes").post({
@@ -62,29 +67,48 @@ export const findMeetingSlot = makeTool(
       },
       meetingDuration: `PT${args.meetingDurationMinutes}M`,
       maxCandidates: args.maxCandidates,
+      minimumAttendeePercentage: 100,
+      isOrganizerOptional: false,
     });
 
-    const suggestions = (result.meetingTimeSuggestions ?? []) as Array<Record<string, unknown>>;
+    const acceptable = args.acceptTentative ? ACCEPTABLE_WITH_TENTATIVE : ACCEPTABLE_FREE;
+    const raw = (result.meetingTimeSuggestions ?? []) as Array<Record<string, unknown>>;
+
+    const projected = raw.map((s) => {
+      const slot = s.meetingTimeSlot as { start?: unknown; end?: unknown } | undefined;
+      const attendeeAvailability = Array.isArray(s.attendeeAvailability)
+        ? (s.attendeeAvailability as Array<Record<string, unknown>>).map((a) => {
+            const ea = (a.attendee as { emailAddress?: { address?: string } } | undefined)?.emailAddress;
+            return {
+              attendee: ea?.address,
+              availability: a.availability as string | undefined,
+            };
+          })
+        : [];
+      return {
+        confidence: s.confidence,
+        organizerAvailability: s.organizerAvailability as string | undefined,
+        start: slot?.start,
+        end: slot?.end,
+        attendeeAvailability,
+      };
+    });
+
+    const filtered = projected.filter((s) => {
+      if (!s.organizerAvailability || !acceptable.has(s.organizerAvailability)) return false;
+      return s.attendeeAvailability.every(
+        (a) => a.availability !== undefined && acceptable.has(a.availability)
+      );
+    });
+
     return {
       attendees: args.attendees,
       durationMinutes: args.meetingDurationMinutes,
+      acceptTentative: args.acceptTentative,
       emptySuggestionsReason: result.emptySuggestionsReason ?? null,
-      suggestions: suggestions.map((s) => {
-        const slot = s.meetingTimeSlot as { start?: unknown; end?: unknown } | undefined;
-        const attendeeAvailability = Array.isArray(s.attendeeAvailability)
-          ? (s.attendeeAvailability as Array<Record<string, unknown>>).map((a) => {
-              const ea = (a.attendee as { emailAddress?: { address?: string } } | undefined)?.emailAddress;
-              return { attendee: ea?.address, availability: a.availability };
-            })
-          : [];
-        return {
-          confidence: s.confidence,
-          organizerAvailability: s.organizerAvailability,
-          start: slot?.start,
-          end: slot?.end,
-          attendeeAvailability,
-        };
-      }),
+      candidatesFromGraph: raw.length,
+      droppedDueToConflicts: raw.length - filtered.length,
+      suggestions: filtered,
     };
   }
 );
