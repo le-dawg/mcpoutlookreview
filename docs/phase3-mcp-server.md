@@ -1,12 +1,11 @@
 # Fase 3 — MCP-server (lokal udvikling)
 
-Milestone 1 leverer:
-- TypeScript MCP-server skeleton
-- OAuth Auth Code + PKCE-flow med cert auth mod Entra app reg
-- Token-cache der persisterer på tværs af restarts
-- Én smoke-tool: `whoami` (kalder `/me` på Graph)
-
-Det er nok til at bevise at pipelinen virker end-to-end. Milestone 2 (tool-surface) tilføjer de rigtige 11 tools.
+Milestone 1 + 2 leverer:
+- TypeScript MCP-server med Streamable HTTP transport
+- OAuth Auth Code + PKCE med cert auth mod Entra app reg
+- Persisteret token-cache (MSAL Node file plugin)
+- 12 tools: `whoami` + 11 produktions-tools (mail, kalender, kollega-kalender)
+- Cross-cutting: per-bruger rate limit (60/min), struktureret audit-log, Graph fejl-mapping
 
 ## Engangsopgaver
 
@@ -129,14 +128,85 @@ Connect to `http://localhost:8787/mcp` med transport type "Streamable HTTP". Du 
 | Multi-user | Milestone 1 bruger `DEV_USER_UPN` env var; multi-user identification kommer i Fase 5 (Cowork integration) |
 | Local token file | `server/.local/tokens.json`, mode 0600, gitignored |
 
-## Hvad kommer i milestone 2
+## Tools
 
-11 tools:
-- Mail (egen): `search_mail`, `read_mail`, `send_mail`, `create_draft`, `reply_to_thread`
-- Kalender (egen): `list_calendar`, `create_event`, `update_event`, `delete_event`
-- Kollega kalender: `read_colleague_calendar`, `find_meeting_slot`
+Alle tools tager JSON-args og returnerer JSON-resultat i `content[0].text`. Hvert kald emitterer en `{"kind":"audit",...}`-linje på stdout.
 
-Plus: per-bruger rate limit, struktureret audit-log, Graph-fejl-mapping (401 → AUTH_REQUIRED, 403 → CALENDAR_NOT_SHARED, 429 → respektér Retry-After).
+### Mail (egen mailbox)
+
+| Tool | Hvad | Vigtige args |
+|---|---|---|
+| `search_mail` | Søg i indbakke/sent/drafts/archive | `query?`, `folder?='inbox'`, `top?=20`, `receivedAfter?`, `receivedBefore?` |
+| `read_mail` | Hent fuld mail med body | `messageId`, `bodyFormat?='text'`, `includeAttachmentsMeta?=true` |
+| `send_mail` | Send mail nu | `to[]`, `cc?`, `bcc?`, `subject`, `body`, `bodyType?='Text'` |
+| `create_draft` | Opret kladde uden at sende | `to?`, `subject`, `body`, `bodyType?='Text'` |
+| `reply_to_thread` | Svar på eksisterende mail | `messageId`, `body`, `replyAll?=false` |
+
+### Kalender (egen)
+
+| Tool | Hvad | Vigtige args |
+|---|---|---|
+| `list_calendar` | Events i tidsrum | `startDateTime`, `endDateTime`, `top?=50` |
+| `create_event` | Opret event | `subject`, `start`, `end`, `timeZone?='Europe/Copenhagen'`, `attendees?`, `isOnlineMeeting?` |
+| `update_event` | PATCH event | `eventId`, valgfri felter |
+| `delete_event` | Slet/cancel event | `eventId`, `sendCancellations?=true` |
+
+`start`/`end` er naive local datetime (uden Z/offset) — Graph fortolker dem ud fra `timeZone`-feltet. Eksempel: `"2026-05-15T10:00:00"` + `timeZone="Europe/Copenhagen"` = 10:00 dansk tid.
+
+### Kollega-kalender
+
+| Tool | Hvad | Vigtige args |
+|---|---|---|
+| `read_colleague_calendar` | Læs anden brugers kalender | `userEmail`, `startDateTime`, `endDateTime`, `top?=50` |
+| `find_meeting_slot` | Find ledige slots på tværs af deltagere | `attendees[]`, `startWindow`, `endWindow`, `meetingDurationMinutes?=30`, `maxCandidates?=5` |
+
+Forudsætter Fase 2 kalender-baseline. 403 fra Graph → `CALENDAR_NOT_SHARED`.
+
+## Cross-cutting
+
+- **Rate limit:** 60 kald/min per UPN. Overskrider → `RATE_LIMITED` med retry-tid.
+- **Audit log:** strukturerede JSON-linier på stdout. Container Apps forwarder til Log Analytics i Fase 4.
+- **Fejl-mapping:** Graph 401 → `AUTH_REQUIRED`, 403 (kalender) → `CALENDAR_NOT_SHARED`, 403 (andet) → `FORBIDDEN`, 404 → `NOT_FOUND`, 429 → `RATE_LIMITED`, 5xx → `UPSTREAM_ERROR`.
+- **Input-validering:** Zod på alle tool-args. Forkert input → `INVALID_INPUT` med felt-detalje.
+
+## Eksempel-kald
+
+Forudsætter at du har `$SID` fra et tidligere `initialize`.
+
+```bash
+# Søg indbakke
+curl -s -X POST http://localhost:8787/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SID" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_mail","arguments":{"query":"faktura","top":5}}}'
+
+# List din kalender de næste 7 dage
+START=$(date -u +%Y-%m-%dT%H:%M:%SZ); END=$(date -u -v+7d +%Y-%m-%dT%H:%M:%SZ)
+curl -s -X POST http://localhost:8787/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SID" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"list_calendar\",\"arguments\":{\"startDateTime\":\"$START\",\"endDateTime\":\"$END\"}}}"
+
+# Læs en kollegas kalender
+curl -s -X POST http://localhost:8787/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SID" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"read_colleague_calendar\",\"arguments\":{\"userEmail\":\"kasper@ai-raadgivning.dk\",\"startDateTime\":\"$START\",\"endDateTime\":\"$END\"}}}"
+
+# Find ledige slots
+curl -s -X POST http://localhost:8787/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SID" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"find_meeting_slot\",\"arguments\":{\"attendees\":[\"kasper@ai-raadgivning.dk\"],\"startWindow\":\"$START\",\"endWindow\":\"$END\",\"meetingDurationMinutes\":30}}}"
+```
+
+## Hvad kommer næst (Fase 4)
+
+- Dockerfile + Bicep til Container Apps deploy
+- Key Vault-backet token-cache (erstatter file plugin)
+- Multi-user identification (Cowork-header → UPN)
+- Audit-log forwarded til Log Analytics
+- Custom domain + managed cert
 
 ## Hvis ting fejler
 

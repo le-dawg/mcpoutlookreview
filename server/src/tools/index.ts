@@ -1,41 +1,43 @@
-import { whoamiTool, whoamiHandler } from "./whoami.js";
+import type { RegisteredTool, ToolCtx, ToolDef, ToolResult } from "./wrap.js";
+import { whoami } from "./whoami.js";
+import { searchMail, readMail, sendMail, createDraft, replyToThread } from "./mail.js";
+import { listCalendar, createEvent, updateEvent, deleteEvent } from "./calendar.js";
+import { readColleagueCalendar, findMeetingSlot } from "./colleague.js";
 
-type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-};
+const all: RegisteredTool[] = [
+  whoami,
+  searchMail,
+  readMail,
+  sendMail,
+  createDraft,
+  replyToThread,
+  listCalendar,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  readColleagueCalendar,
+  findMeetingSlot,
+];
 
-type ToolEntry = {
-  def: typeof whoamiTool;
-  handler: (args: Record<string, unknown>) => Promise<ToolResult>;
-};
+const registry: Record<string, RegisteredTool> = Object.fromEntries(
+  all.map((t) => [t.def.name, t])
+);
 
-const registry: Record<string, ToolEntry> = {
-  whoami: { def: whoamiTool, handler: whoamiHandler },
-};
-
-export function listTools() {
-  return Object.values(registry).map((r) => r.def);
+export function listTools(): ToolDef[] {
+  return all.map((t) => t.def);
 }
 
 export async function callTool(
   name: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
+  ctx: ToolCtx
 ): Promise<ToolResult> {
   const entry = registry[name];
   if (!entry) {
     return {
-      content: [{ type: "text", text: `Unknown tool: ${name}` }],
+      content: [{ type: "text", text: `UNKNOWN_TOOL: ${name}` }],
       isError: true,
     };
   }
-  try {
-    return await entry.handler(args);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return {
-      content: [{ type: "text", text: `Error: ${msg}` }],
-      isError: true,
-    };
-  }
+  return entry.handler(args, ctx);
 }

@@ -4,6 +4,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { callTool, listTools } from "../tools/index.js";
+import { config } from "../config.js";
 
 export function buildMcpServer(): Server {
   const server = new Server(
@@ -16,7 +17,8 @@ export function buildMcpServer(): Server {
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    return callTool(req.params.name, (req.params.arguments ?? {}) as Record<string, unknown>);
+    const args = (req.params.arguments ?? {}) as Record<string, unknown>;
+    return callTool(req.params.name, args, { upn: config.DEV_USER_UPN });
   });
 
   return server;
