@@ -28,8 +28,8 @@ Fuld kontekst: [`../HANDOVER.md`](../HANDOVER.md).
 ## Faser
 
 - ✅ Fase 0 — Discovery
-- 🟡 Fase 1 — Entra app registration *(her)*
-- ⚪ Fase 2 — Exchange kalender-baseline (Reviewer på `\Calendar`)
+- ✅ Fase 1 — Entra app registration
+- 🟡 Fase 2 — Exchange kalender-baseline (Reviewer på `\Calendar`) *(her — se [`phase2-calendar-baseline.md`](./phase2-calendar-baseline.md))*
 - ⚪ Fase 3 — MCP-server (TypeScript)
 - ⚪ Fase 4 — Azure deploy (Container Apps, Key Vault, custom domain)
 - ⚪ Fase 5 — Cowork connector-registrering + pilot
