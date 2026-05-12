@@ -9,10 +9,12 @@ Den valgte sti er **Bicep + manuel deploy**. GitHub Actions-workflow'en (`.githu
 Engangs-installer:
 
 ```bash
-brew install azure-cli docker
+brew install azure-cli
 az login --tenant 9de3d9c3-b0bb-4d2e-93ab-f6407a8b3793
 az account set --subscription "<din subscription>"
 ```
+
+Ingen lokal Docker krævet — vi bruger `az acr build` der bygger i Azure Container Registry direkte.
 
 Forudsætninger fra tidligere faser:
 - Fase 1: Entra app reg `4c797321-edf4-4382-b455-4501cd87c8c0` med cert credential
@@ -54,14 +56,20 @@ Output indeholder:
 
 ## Trin 3 — build og push det rigtige image
 
+ACR-name er `acrLoginServer` minus `.azurecr.io`-suffixet (fx `crairoutlookprod`). `az acr build` uploader `server/`-mappen til ACR og bygger imaget i skyen — ingen lokal Docker nødvendig.
+
 ```bash
-ACR_LOGIN=<acrLoginServer fra trin 2>
-az acr login --name "${ACR_LOGIN%%.*}"
+ACR_NAME=<acrLoginServer fra trin 2, uden .azurecr.io>
 
 cd server
-docker build -t "$ACR_LOGIN/outlook-mcp:v0.1.0" .
-docker push "$ACR_LOGIN/outlook-mcp:v0.1.0"
+az acr build \
+  --registry "$ACR_NAME" \
+  --image outlook-mcp:v0.1.0 \
+  --image outlook-mcp:latest \
+  .
 ```
+
+Forventet runtime: 3-5 min.
 
 Opdater Container App'en til at bruge det:
 
