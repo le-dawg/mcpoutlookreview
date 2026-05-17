@@ -1,6 +1,6 @@
 # Handover — Claude for Outlook (AI Rådgivning)
 
-**Status:** Fase 4 fuldført 2026-05-17. `https://outlook.mcp.ai-raadgivning.dk/health` live med managed cert. Den gamle `https://mcp.ai-raadgivning.dk` er stadig bundet parallelt indtil J har verificeret OAuth-flow + MCP-tools mod den nye URL — fjernes derefter. Mangler: J's OAuth-login mod prod-URL + end-to-end MCP-smoke test.
+**Status:** Fase 4 fuldført 2026-05-17. End-to-end smoke test mod prod (`https://outlook.mcp.ai-raadgivning.dk/mcp`) passerer: initialize, tools/list (12 tools), whoami → Graph /me, list_calendar → real events. Den gamle `https://mcp.ai-raadgivning.dk`-binding kan nu fjernes (eller blive parallel). Klar til Fase 5 (Cowork connector-registrering + pilot).
 **Ejer:** J (Jacob Dalhoff) — `jacob@ai-raadgivning.dk`
 **Implementering:** Claude Code kører teknisk eksekvering; J er Global Admin + Azure Owner.
 
