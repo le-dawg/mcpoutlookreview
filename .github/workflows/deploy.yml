@@ -1,12 +1,9 @@
 name: Build & deploy to Azure Container Apps
 
+# push trigger disabled until OIDC federated credential is set up.
+# See docs/phase4-deploy.md "Trin 7 — opsæt CI/CD" for how to enable.
+# Until then this only runs on manual dispatch from the Actions UI.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/**'
-      - 'infra/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 env:
