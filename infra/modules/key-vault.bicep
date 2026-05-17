@@ -5,6 +5,7 @@ param name string
 param location string
 
 @description('Object ID of the user-assigned managed identity that needs to read secrets.')
+#disable-next-line secure-secrets-in-params
 param secretsUserPrincipalId string
 
 @description('Cert private key (PEM) — stored as a secret.')

@@ -12,4 +12,8 @@ param certThumbprint = '00EFA562B712661D3DA092803C99014C83A60B70'
 param devUserUpn = 'jacob@ai-raadgivning.dk'
 param customDomain = 'mcp.ai-raadgivning.dk'
 
-// containerImage, certPrivateKeyPem, mcpAuthToken passed at deploy time via CLI
+// Secrets — placeholder values; real values MUST be passed via --parameters
+// at deploy time. Bicep param-file rules require every param to be declared
+// here, even ones we override at the CLI.
+param certPrivateKeyPem = ''
+param mcpAuthToken = ''
