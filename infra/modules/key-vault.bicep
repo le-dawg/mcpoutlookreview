@@ -19,8 +19,10 @@ param mcpAuthToken string
 @description('Tenant ID for the vault.')
 param tenantId string = subscription().tenantId
 
-// "Key Vault Secrets User" role — read-only secret access
-var secretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+// "Key Vault Secrets Officer" role — read + write secrets. Read-only Secrets
+// User was insufficient because the MSAL token-cache plugin writes the
+// serialized cache back as a secret every time tokens rotate.
+var secretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
 
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: name
@@ -57,13 +59,13 @@ resource authTokenSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
 }
 
-resource secretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource secretsOfficerAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: kv
-  name: guid(kv.id, secretsUserPrincipalId, secretsUserRoleId)
+  name: guid(kv.id, secretsUserPrincipalId, secretsOfficerRoleId)
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
-      secretsUserRoleId
+      secretsOfficerRoleId
     )
     principalId: secretsUserPrincipalId
     principalType: 'ServicePrincipal'
