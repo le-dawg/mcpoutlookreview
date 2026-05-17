@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config } from "./config.js";
 import { oauthRouter } from "./auth/oauth-routes.js";
+import { requestContext } from "./auth/request-context.js";
 import { buildMcpServer } from "./mcp/server.js";
 
 const app = express();
@@ -29,41 +30,53 @@ function bearerAuth(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
+function resolveUpn(req: Request): string {
+  const hdr = req.headers["x-mcp-user"];
+  if (typeof hdr === "string" && hdr.trim().length > 0) {
+    return hdr.trim().toLowerCase();
+  }
+  return config.DEV_USER_UPN.toLowerCase();
+}
+
 const transports = new Map<string, StreamableHTTPServerTransport>();
 
 app.post("/mcp", bearerAuth, async (req, res) => {
-  try {
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
-    let transport = sessionId ? transports.get(sessionId) : undefined;
+  await requestContext.run({ upn: resolveUpn(req) }, async () => {
+    try {
+      const sessionId = req.headers["mcp-session-id"] as string | undefined;
+      let transport = sessionId ? transports.get(sessionId) : undefined;
 
-    if (!transport) {
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (id) => {
-          transports.set(id, transport!);
-        },
-      });
-      transport.onclose = () => {
-        if (transport!.sessionId) transports.delete(transport!.sessionId);
-      };
-      const server = buildMcpServer();
-      await server.connect(transport);
+      if (!transport) {
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (id) => {
+            transports.set(id, transport!);
+          },
+        });
+        transport.onclose = () => {
+          if (transport!.sessionId) transports.delete(transport!.sessionId);
+        };
+        const server = buildMcpServer();
+        await server.connect(transport);
+      }
+      await transport.handleRequest(req, res, req.body);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!res.headersSent) res.status(500).json({ error: msg });
     }
-    await transport.handleRequest(req, res, req.body);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (!res.headersSent) res.status(500).json({ error: msg });
-  }
+  });
 });
 
 async function forwardSessionRequest(req: Request, res: Response): Promise<void> {
-  const sessionId = req.headers["mcp-session-id"] as string | undefined;
-  const transport = sessionId ? transports.get(sessionId) : undefined;
-  if (!transport) {
-    res.status(400).send("Missing or unknown mcp-session-id.");
-    return;
-  }
-  await transport.handleRequest(req, res);
+  await requestContext.run({ upn: resolveUpn(req) }, async () => {
+    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+    const transport = sessionId ? transports.get(sessionId) : undefined;
+    if (!transport) {
+      res.status(400).send("Missing or unknown mcp-session-id.");
+      return;
+    }
+    await transport.handleRequest(req, res);
+  });
 }
 app.get("/mcp", bearerAuth, forwardSessionRequest);
 app.delete("/mcp", bearerAuth, forwardSessionRequest);
