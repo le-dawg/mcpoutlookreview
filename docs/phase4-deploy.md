@@ -1,6 +1,6 @@
 # Fase 4 — Azure deploy
 
-Producerer: `rg-claude-outlook-prod` med Log Analytics, Key Vault, ACR, Container Apps Environment, Container App (med user-assigned managed identity), custom domain `mcp.ai-raadgivning.dk`.
+Producerer: `rg-claude-outlook-prod` med Log Analytics, Key Vault, ACR, Container Apps Environment, Container App (med user-assigned managed identity), custom domain `outlook.outlook.mcp.ai-raadgivning.dk` (subdomæne så vi kan hoste flere MCPer under `mcp.` namespace senere).
 
 Den valgte sti er **Bicep + manuel deploy**. GitHub Actions-workflow'en (`.github/workflows/deploy.yml`) håndterer kun image-build + rolling update efter førstegangs-deploy. Førstegangs-deploy gør du selv med `az deployment sub create`.
 
@@ -99,7 +99,7 @@ curl -sf "https://$APP_FQDN/health"
 # { "status": "ok", "version": "0.1.0" }
 ```
 
-## Trin 4 — custom domain (mcp.ai-raadgivning.dk)
+## Trin 4 — custom domain (outlook.outlook.mcp.ai-raadgivning.dk)
 
 > **Bicep redeploy advarsel:** `infra/main.bicep` administrerer **ikke** custom-domain-bindingen. Du opretter den via `az containerapp hostname add/bind` her i Trin 4. Efterfølgende `az deployment sub create`-kørsler bevarer bindingen, fordi Bicep'en *ikke* nævner `customDomains` (omitting = preserve eksisterende state). MEN: ændrer du Bicep'en til at sætte `customDomains: []` eller andet eksplicit, ryger bindingen. Bind igen med `az containerapp hostname bind` hvis det sker.
 
@@ -124,8 +124,9 @@ DNS skal være på plads før Azure kan validere ejerskab og udstede et managed 
 
 4. Vent på DNS-propagation:
    ```bash
-   dig +short mcp.ai-raadgivning.dk CNAME
-   dig +short asuid.mcp.ai-raadgivning.dk TXT
+   dig +short outlook.mcp.ai-raadgivning.dk CNAME
+   dig +short asuid.outlook.mcp.ai-raadgivning.dk TXT
+   # GoDaddy DNS host fields: 'outlook.mcp' for CNAME, 'asuid.outlook.mcp' for TXT
    ```
    Begge skal returnere de værdier du satte. Kan tage minutter til timer.
 
@@ -134,28 +135,28 @@ DNS skal være på plads før Azure kan validere ejerskab og udstede et managed 
    az containerapp hostname add \
      -g rg-claude-outlook-prod \
      -n ca-claude-outlook-prod \
-     --hostname mcp.ai-raadgivning.dk
+     --hostname outlook.mcp.ai-raadgivning.dk
 
    az containerapp hostname bind \
      -g rg-claude-outlook-prod \
      -n ca-claude-outlook-prod \
-     --hostname mcp.ai-raadgivning.dk \
+     --hostname outlook.mcp.ai-raadgivning.dk \
      --environment cae-claude-outlook-prod \
      --validation-method CNAME
    ```
 
 6. Cert udstedes automatisk (Let's Encrypt). Tager 1-5 min. Verificér:
    ```bash
-   curl -sf https://mcp.ai-raadgivning.dk/health
+   curl -sf https://outlook.mcp.ai-raadgivning.dk/health
    ```
 
 ## Trin 5 — log ind som dev-user mod prod
 
-OAuth-flow'et fungerer samme måde som lokalt, bare mod `https://mcp.ai-raadgivning.dk/auth/login`. Token cachet i Key Vault (via MSAL-pluginnet).
+OAuth-flow'et fungerer samme måde som lokalt, bare mod `https://outlook.mcp.ai-raadgivning.dk/auth/login`. Token cachet i Key Vault (via MSAL-pluginnet).
 
 ```bash
 # Åbn i browser
-open https://mcp.ai-raadgivning.dk/auth/login
+open https://outlook.mcp.ai-raadgivning.dk/auth/login
 ```
 
 Log ind som `jacob@ai-raadgivning.dk`. Resulterende token gemmes i KV-secret `msal-token-cache`.
@@ -165,21 +166,21 @@ Log ind som `jacob@ai-raadgivning.dk`. Resulterende token gemmes i KV-secret `ms
 ```bash
 TOKEN=<mcp-auth-token fra trin 1>
 
-SID=$(curl -s -D - -X POST https://mcp.ai-raadgivning.dk/mcp \
+SID=$(curl -s -D - -X POST https://outlook.mcp.ai-raadgivning.dk/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' \
   -o /dev/null | grep -i '^mcp-session-id:' | awk '{print $2}' | tr -d '\r\n')
 
-curl -s -X POST https://mcp.ai-raadgivning.dk/mcp \
+curl -s -X POST https://outlook.mcp.ai-raadgivning.dk/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -H "Authorization: Bearer $TOKEN" \
   -H "mcp-session-id: $SID" \
   -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
 
-curl -s -X POST https://mcp.ai-raadgivning.dk/mcp \
+curl -s -X POST https://outlook.mcp.ai-raadgivning.dk/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -H "Authorization: Bearer $TOKEN" \
@@ -204,7 +205,7 @@ Opsætning af det er en lille sub-opgave i sig selv — vi tager den når først
 | Token cache | File (`server/.local/tokens.json`) | Key Vault secret `msal-token-cache` |
 | Private key | File (`out/cert/claude-outlook-mcp.key`) | Env var `CERT_PRIVATE_KEY_PEM` (sourced from KV) |
 | `/mcp` auth | Ingen | Bearer token i `Authorization` header |
-| Redirect URI | `http://localhost:8787/auth/callback` | `https://mcp.ai-raadgivning.dk/auth/callback` |
+| Redirect URI | `http://localhost:8787/auth/callback` | `https://outlook.mcp.ai-raadgivning.dk/auth/callback` |
 
 Begge redirect URIs er allerede registreret på app reg'en (Fase 1 added prod, milestone 1 added localhost).
 

@@ -1,6 +1,6 @@
 # Handover — Claude for Outlook (AI Rådgivning)
 
-**Status:** Fase 4 fuldført 2026-05-17. `https://mcp.ai-raadgivning.dk/health` live med managed Let's Encrypt-cert. Mangler kun: OAuth-login mod prod-URL + end-to-end MCP-smoke test fra J's terminal med bearer-token.
+**Status:** Fase 4 infra live 2026-05-17. Rename til subdomæne-pattern (`outlook.mcp.ai-raadgivning.dk`) i gang — gør plads til fremtidige MCPer under samme `mcp.*` namespace. Containeren kører; mangler: DNS for ny hostname + cert+bind + Entra redirect URI opdatering + final smoke test.
 **Ejer:** J (Jacob Dalhoff) — `jacob@ai-raadgivning.dk`
 **Implementering:** Claude Code kører teknisk eksekvering; J er Global Admin + Azure Owner.
 
@@ -59,7 +59,7 @@ Tenant ID:         9de3d9c3-b0bb-4d2e-93ab-f6407a8b3793
 Azure subscription: J = Owner
 Resource group:    rg-claude-outlook-prod (westeurope)
 Repo:              github.com/solution8-com/claude-outlook-mcp (privat)
-MCP-domæne:        mcp.ai-raadgivning.dk (CNAME via GoDaddy)
+MCP-domæne:        outlook.mcp.ai-raadgivning.dk (subdomæne under mcp.* namespace for fremtidige MCPer)
 CI/CD:             GitHub Actions
 Auth til app reg:  Certificate (ikke client secret)
 Kollega-kalender:  Reviewer (fuld detalje)
@@ -74,7 +74,7 @@ Sub deployment til `MCPP Subscription` (`35cd9c6c-0c00-4efe-bd03-21549de140e4`) 
 Resource group        : rg-claude-outlook-prod
 Container App         : ca-claude-outlook-prod
 Default FQDN          : ca-claude-outlook-prod.bravepebble-9654e2dc.westeurope.azurecontainerapps.io
-Custom domain target  : mcp.ai-raadgivning.dk (CNAME ikke sat endnu)
+Custom domain target  : outlook.mcp.ai-raadgivning.dk (subdomæne — plads til linear.mcp, notion.mcp osv. senere)
 Image                 : crairoutlookprod.azurecr.io/outlook-mcp:v0.1.0
 Key Vault             : kv-airoutlook-prod (cert-private-key-pem, mcp-auth-token, msal-token-cache)
 Container Registry    : crairoutlookprod.azurecr.io
@@ -85,8 +85,8 @@ Managed Identity      : id-claude-outlook-prod
   - rolle på ACR      : AcrPull
 Custom domain verification ID: 16B909AF9CDC568AD2CF579E563A370836A94977D71DA09F1B8758819385040B
 MCP_AUTH_TOKEN        : lokalt i out/mcp-auth-token.txt (gitignored); kopi i KV som `mcp-auth-token`
-Custom domain bundet  : ✅ mcp.ai-raadgivning.dk (SniEnabled, managed cert `mcp-ai-raadgivning-dk`)
-Health check OK       : `curl https://mcp.ai-raadgivning.dk/health` → {"status":"ok","version":"0.1.0"}
+Custom domain bundet  : Migrering til outlook.mcp.* i gang. Gammel mcp.ai-raadgivning.dk er stadig bundet (vil blive fjernet efter migration completes).
+Health check OK       : `curl https://outlook.mcp.ai-raadgivning.dk/health` (efter cert+bind)
 ```
 
 ## 4c. Fase 2a — bekræftede værdier (2026-05-12)
@@ -111,7 +111,7 @@ App registration oprettet via manuel clickthrough (`docs/phase1-manual.md`). Adm
 App display name      : Claude for Outlook (AI Rådgivning)
 App ID (client ID)    : 4c797321-edf4-4382-b455-4501cd87c8c0
 Tenant                : 9de3d9c3-b0bb-4d2e-93ab-f6407a8b3793
-Redirect URI          : https://mcp.ai-raadgivning.dk/auth/callback (Web platform)
+Redirect URI          : https://mcp.ai-raadgivning.dk/auth/callback (Web platform). Bliver suppleret med outlook.mcp-variant under rename.
 Sign-in audience      : AzureADMyOrg (single tenant)
 Cert thumbprint (SHA1): 00EFA562B712661D3DA092803C99014C83A60B70
 Cert algorithm        : RSA 2048

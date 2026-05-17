@@ -10,7 +10,10 @@ param azureClientId = '4c797321-edf4-4382-b455-4501cd87c8c0'
 param certThumbprint = '00EFA562B712661D3DA092803C99014C83A60B70'
 
 param devUserUpn = 'jacob@ai-raadgivning.dk'
-param customDomain = 'mcp.ai-raadgivning.dk'
+
+// MCP-specific subdomain — leaves room for future MCPs under `mcp.ai-raadgivning.dk`
+// (linear.mcp..., notion.mcp..., osv.).
+param customDomain = 'outlook.mcp.ai-raadgivning.dk'
 
 // Secrets — placeholder values; real values MUST be passed via --parameters
 // at deploy time. Bicep param-file rules require every param to be declared

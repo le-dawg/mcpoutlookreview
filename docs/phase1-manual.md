@@ -29,7 +29,7 @@ Begge `.key` og `.pfx` er gitignored. Lad dem ligge i `out/cert/` indtil Fase 4.
    - **Supported account types:** `Accounts in this organizational directory only (AI Rådgivning only - Single tenant)`
    - **Redirect URI:**
      - Platform: `Web`
-     - URI: `https://mcp.ai-raadgivning.dk/auth/callback`
+     - URI: `https://outlook.mcp.ai-raadgivning.dk/auth/callback`
 5. **Register**
 
 Når app'en er oprettet, lander du på dens Overview-side. **Noter:**
@@ -119,7 +119,7 @@ App display name      : Claude for Outlook (AI Rådgivning)
 Application (client) ID: <APP_ID>
 Directory (tenant) ID  : 9de3d9c3-b0bb-4d2e-93ab-f6407a8b3793
 Object ID              : <APP_OBJECT_ID>
-Redirect URI           : https://mcp.ai-raadgivning.dk/auth/callback
+Redirect URI           : https://outlook.mcp.ai-raadgivning.dk/auth/callback
 Sign-in audience       : AzureADMyOrg (single tenant)
 Cert thumbprint        : <fra generate-cert.sh>
 Cert expires           : ~ et år frem
