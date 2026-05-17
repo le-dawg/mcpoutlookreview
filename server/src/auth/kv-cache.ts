@@ -11,9 +11,18 @@ function getClient(): SecretClient {
     if (!config.KV_NAME) {
       throw new Error("KV_NAME not set — cannot use KV-backed token cache.");
     }
+    // Container App env has AZURE_CLIENT_ID set to the Entra app reg's
+    // client ID, which DefaultAzureCredential would otherwise misinterpret
+    // as the managed identity's client ID. Pass MANAGED_IDENTITY_CLIENT_ID
+    // explicitly when set.
+    const credential = new DefaultAzureCredential(
+      config.MANAGED_IDENTITY_CLIENT_ID
+        ? { managedIdentityClientId: config.MANAGED_IDENTITY_CLIENT_ID }
+        : undefined
+    );
     cachedClient = new SecretClient(
       `https://${config.KV_NAME}.vault.azure.net`,
-      new DefaultAzureCredential()
+      credential
     );
   }
   return cachedClient;

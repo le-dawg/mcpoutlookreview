@@ -19,6 +19,11 @@ const Schema = z.object({
   KV_NAME: z.string().optional(),
   TOKEN_STORE_PATH: z.string().default("./.local/tokens.json"),
 
+  // Client ID of the user-assigned managed identity attached to the Container
+  // App. Used to disambiguate DefaultAzureCredential when AZURE_CLIENT_ID
+  // is also set (to the Entra app reg). Required for KV access in prod.
+  MANAGED_IDENTITY_CLIENT_ID: z.string().uuid().optional(),
+
   // Bearer auth on /mcp. If unset, no auth check (dev only).
   MCP_AUTH_TOKEN: z.string().optional(),
 

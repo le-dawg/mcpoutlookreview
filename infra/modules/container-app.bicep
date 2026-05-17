@@ -34,6 +34,9 @@ param devUserUpn string
 @description('Custom domain (empty string skips the binding).')
 param customDomain string
 
+@description('Client ID of the user-assigned managed identity (NOT the resource ID, NOT the principal ID — the clientId).')
+param managedIdentityClientId string
+
 var keyVaultBaseUrl = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets'
 var oauthRedirectUri = empty(customDomain)
   ? ''
@@ -104,9 +107,9 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'MCP_AUTH_TOKEN', secretRef: 'mcp-auth-token' }
             { name: 'OAUTH_REDIRECT_URI', value: oauthRedirectUri }
             { name: 'KV_NAME', value: keyVaultName }
+            { name: 'MANAGED_IDENTITY_CLIENT_ID', value: managedIdentityClientId }
             { name: 'DEV_USER_UPN', value: devUserUpn }
             { name: 'PORT', value: '8787' }
-            { name: 'AZURE_CLIENT_ID_FOR_TOKEN_CACHE_MI', value: '' }
           ]
           probes: [
             {
