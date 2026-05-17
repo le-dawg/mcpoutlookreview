@@ -13,6 +13,9 @@ param image string
 @description('Resource ID of the user-assigned managed identity.')
 param managedIdentityId string
 
+@description('ACR login server (e.g. crairoutlookprod.azurecr.io). Used to wire the registry credentials to the managed identity.')
+param acrLoginServer string
+
 @description('Key Vault name to source secrets from.')
 param keyVaultName string
 
@@ -65,6 +68,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         // Re-running this template will preserve existing bindings as long
         // as we don't write the customDomains key here.
       }
+      registries: [
+        {
+          server: acrLoginServer
+          identity: managedIdentityId
+        }
+      ]
       secrets: [
         {
           name: 'cert-private-key-pem'

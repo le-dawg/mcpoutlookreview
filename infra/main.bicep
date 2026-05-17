@@ -115,6 +115,7 @@ module app 'modules/container-app.bicep' = {
     environmentId: env.outputs.id
     image: containerImage
     managedIdentityId: mi.outputs.id
+    acrLoginServer: acr.outputs.loginServer
     keyVaultName: kv.outputs.name
     azureClientId: azureClientId
     azureTenantId: azureTenantId
