@@ -1,6 +1,6 @@
 # Handover — Claude for Outlook (AI Rådgivning)
 
-**Status:** Fase 4 infra live 2026-05-17. Rename til subdomæne-pattern (`outlook.mcp.ai-raadgivning.dk`) i gang — gør plads til fremtidige MCPer under samme `mcp.*` namespace. Containeren kører; mangler: DNS for ny hostname + cert+bind + Entra redirect URI opdatering + final smoke test.
+**Status:** Fase 4 fuldført 2026-05-17. `https://outlook.mcp.ai-raadgivning.dk/health` live med managed cert. Den gamle `https://mcp.ai-raadgivning.dk` er stadig bundet parallelt indtil J har verificeret OAuth-flow + MCP-tools mod den nye URL — fjernes derefter. Mangler: J's OAuth-login mod prod-URL + end-to-end MCP-smoke test.
 **Ejer:** J (Jacob Dalhoff) — `jacob@ai-raadgivning.dk`
 **Implementering:** Claude Code kører teknisk eksekvering; J er Global Admin + Azure Owner.
 
@@ -85,8 +85,10 @@ Managed Identity      : id-claude-outlook-prod
   - rolle på ACR      : AcrPull
 Custom domain verification ID: 16B909AF9CDC568AD2CF579E563A370836A94977D71DA09F1B8758819385040B
 MCP_AUTH_TOKEN        : lokalt i out/mcp-auth-token.txt (gitignored); kopi i KV som `mcp-auth-token`
-Custom domain bundet  : Migrering til outlook.mcp.* i gang. Gammel mcp.ai-raadgivning.dk er stadig bundet (vil blive fjernet efter migration completes).
-Health check OK       : `curl https://outlook.mcp.ai-raadgivning.dk/health` (efter cert+bind)
+Custom domain bundet  : ✅ outlook.mcp.ai-raadgivning.dk (managed cert `outlook-mcp-ai-raadgivning-dk`). Gammel mcp.ai-raadgivning.dk bundet parallelt (backwards compat) — fjernes når migration er verificeret.
+Health check OK       : `curl https://outlook.mcp.ai-raadgivning.dk/health` → 200
+Entra redirect URIs   : http://localhost:8787/auth/callback, https://mcp.ai-raadgivning.dk/auth/callback (deprecated), https://outlook.mcp.ai-raadgivning.dk/auth/callback (active)
+OAUTH_REDIRECT_URI    : env var på Container App opdateret til outlook.mcp-variant (revision --0000002)
 ```
 
 ## 4c. Fase 2a — bekræftede værdier (2026-05-12)
