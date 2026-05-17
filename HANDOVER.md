@@ -1,6 +1,6 @@
 # Handover — Claude for Outlook (AI Rådgivning)
 
-**Status:** Fase 3 milestone 2 leveret 2026-05-12. Alle 12 tools (whoami + 11 produktions-tools) registrerer på MCP-server. Tool-laget verificeret via `tools/list`. Tool-fetch mod Graph ikke smoke-testet end-to-end endnu — next step.
+**Status:** Fase 4 infra deployet til Azure 2026-05-17. Container App live på default FQDN med `/health` grøn. Mangler: DNS-records for `mcp.ai-raadgivning.dk` + `az containerapp hostname bind` + smoke test mod prod-URL.
 **Ejer:** J (Jacob Dalhoff) — `jacob@ai-raadgivning.dk`
 **Implementering:** Claude Code kører teknisk eksekvering; J er Global Admin + Azure Owner.
 
@@ -66,6 +66,28 @@ Kollega-kalender:  Reviewer (fuld detalje)
 Multi-tenant:      Nej
 ```
 
+## 4d. Fase 4 — bekræftede værdier (2026-05-17)
+
+Sub deployment til `MCPP Subscription` (`35cd9c6c-0c00-4efe-bd03-21549de140e4`) i `westeurope`. Bicep'en gennemgik to small-fix-iterations efter første deploy (BCP258 bicepparam-decls + ACR registry-wiring via MI).
+
+```
+Resource group        : rg-claude-outlook-prod
+Container App         : ca-claude-outlook-prod
+Default FQDN          : ca-claude-outlook-prod.bravepebble-9654e2dc.westeurope.azurecontainerapps.io
+Custom domain target  : mcp.ai-raadgivning.dk (CNAME ikke sat endnu)
+Image                 : crairoutlookprod.azurecr.io/outlook-mcp:v0.1.0
+Key Vault             : kv-airoutlook-prod (cert-private-key-pem, mcp-auth-token, msal-token-cache)
+Container Registry    : crairoutlookprod.azurecr.io
+Log Analytics         : log-claude-outlook-prod (1 GB/dag cap, 30 dages retention)
+Managed Identity      : id-claude-outlook-prod
+  - clientId          : 00f83490-27fc-4a82-9ab6-eb36b5a05062
+  - rolle på KV       : Key Vault Secrets User
+  - rolle på ACR      : AcrPull
+Custom domain verification ID: 16B909AF9CDC568AD2CF579E563A370836A94977D71DA09F1B8758819385040B
+MCP_AUTH_TOKEN        : lokalt i out/mcp-auth-token.txt (gitignored); kopi i KV som `mcp-auth-token`
+Health check OK       : `curl https://<default-fqdn>/health` → {"status":"ok","version":"0.1.0"}
+```
+
 ## 4c. Fase 2a — bekræftede værdier (2026-05-12)
 
 Kalender-baseline kørt med `-Apply` mod produktion. Ingen errors, ingen skips.
@@ -112,6 +134,7 @@ App ID og tenant ID er ikke hemmelige — de bruges direkte som config-parametre
 | 2b | **Scheduled runbook** | Cron der fanger nye medarbejdere ugentligt (kræver separat Entra app reg + cert) | — | ⚪ Pending |
 | 3a | **MCP-server skeleton + auth** | TS-server, OAuth Auth Code + PKCE, MSAL cache, `whoami` smoke-tool | — | ✅ 2026-05-12 |
 | 3b | **Tool surface** | 11 tools (mail+kalender), rate limit, audit log, Graph fejl-mapping | — | ✅ 2026-05-12 |
+| 4 | **Azure deploy** | Bicep, Dockerfile, Container App + KV + ACR + LA, CI-skelet | ⏸ Før første `az deployment sub create` | ✅ 2026-05-17 (default FQDN; custom domain mangler DNS) |
 | 3 | **MCP-server** | TypeScript-server med tool-endpoints: `send_email`, `create_draft`, `reply_to_thread`, `create_event`, `update_event`, `delete_event`, `read_colleague_calendar`, `find_meeting_slot` (+ mail-søgning/læsning på *egen* mailbox). OAuth-flow, Key Vault token-store, audit logging | — |
 | 4 | **Deploy til Azure** | Bicep `main.bicep` → RG, Log Analytics, Container App, Key Vault, custom domain, managed cert | ⏸ Før første `az deployment sub create` i prod |
 | 5 | **Registrering i Claude Cowork** | Custom connector i Cowork admin, pilot med J + 1–2 kolleger, derefter org-wide | ⏸ Før org-wide-aktivering (pilot skal være grøn) |
