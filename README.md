@@ -4,8 +4,7 @@ Org-scoped Claude Cowork integration for AI Rådgivning — gives every employee
 
 Built because the official Microsoft 365 MCP connector is read-only. AIR needs write (send, reply, create events).
 
-## Architecture (locked)
-
+## Architecture (locked)zbkmxcg;lbmnxf;ogns
 - Delegated OAuth 2.0 (Auth Code + PKCE) per user
 - TypeScript MCP server, Node 20 LTS
 - Hosting: Azure Container Apps (scale-to-zero)
